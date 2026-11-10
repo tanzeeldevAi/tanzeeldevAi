@@ -1,0 +1,12 @@
+{
+  "public_repos": 11,
+  "total_stars": 17,
+  "repos": {
+    "google-business-profile-ai-automation": {"stars": 10, "language": "Python"},
+    "whatsapp-ai-chatbot-support-agent": {"stars": 1, "language": "JavaScript"},
+    "linkedin-automation-ai-agent": {"stars": 0, "language": "Python"},
+    "reddit-lead-generation-ai-agent": {"stars": 1, "language": "Python"},
+    "upwork-ai-proposal-bot": {"stars": 0, "language": "JavaScript"},
+    "zara-ai-laptop-agent": {"stars": 5, "language": "Python"}
+  }
+}

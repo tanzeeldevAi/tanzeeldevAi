@@ -1,0 +1,36 @@
+name: Redraw profile cards
+
+# Every morning, and whenever the renderer or its inputs change. The cards
+# carry live numbers, so they are redrawn rather than edited by hand.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["scripts/**", "fonts/**", "assets/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  cards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch star counts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/fetch_data.py
+      - name: Draw the cards
+        run: python scripts/render_cards.py
+      - name: Commit if anything changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cards data
+          git diff --cached --quiet || git commit -m "Redraw cards from today's data"
+          git push
