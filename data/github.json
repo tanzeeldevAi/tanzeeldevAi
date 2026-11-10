@@ -1,12 +1,54 @@
 {
-  "public_repos": 11,
-  "total_stars": 17,
+  "public_repos": 12,
   "repos": {
-    "google-business-profile-ai-automation": {"stars": 10, "language": "Python"},
-    "whatsapp-ai-chatbot-support-agent": {"stars": 1, "language": "JavaScript"},
-    "linkedin-automation-ai-agent": {"stars": 0, "language": "Python"},
-    "reddit-lead-generation-ai-agent": {"stars": 1, "language": "Python"},
-    "upwork-ai-proposal-bot": {"stars": 0, "language": "JavaScript"},
-    "zara-ai-laptop-agent": {"stars": 5, "language": "Python"}
-  }
+    "ai-video-transcript-keyframes": {
+      "language": "Python",
+      "stars": 0
+    },
+    "aree-solutions": {
+      "language": null,
+      "stars": 0
+    },
+    "canada-limo-service-demo": {
+      "language": "HTML",
+      "stars": 0
+    },
+    "google-business-profile-ai-automation": {
+      "language": "Python",
+      "stars": 10
+    },
+    "linkedin-automation-ai-agent": {
+      "language": "Python",
+      "stars": 0
+    },
+    "mandela-collection": {
+      "language": "JavaScript",
+      "stars": 0
+    },
+    "reddit-lead-generation-ai-agent": {
+      "language": "Python",
+      "stars": 1
+    },
+    "tanzeeldevAi": {
+      "language": "Python",
+      "stars": 0
+    },
+    "touch-and-care-demo": {
+      "language": "HTML",
+      "stars": 0
+    },
+    "upwork-ai-proposal-bot": {
+      "language": "JavaScript",
+      "stars": 0
+    },
+    "whatsapp-ai-chatbot-support-agent": {
+      "language": "JavaScript",
+      "stars": 1
+    },
+    "zara-ai-laptop-agent": {
+      "language": "Python",
+      "stars": 5
+    }
+  },
+  "total_stars": 17
 }
