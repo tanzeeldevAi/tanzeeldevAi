@@ -28,17 +28,22 @@ DATA = json.loads((ROOT / "data" / "github.json").read_text())
 METRICS = json.loads((ROOT / "fonts" / "metrics.json").read_text())
 
 # ---------------------------------------------------------------- the palette
+# Every colour here is taken from the profile photo, whose backdrop runs from
+# a dark moss on the left to a lime green on the right. The hero repeats that
+# sweep, so the photo sits in it rather than on it.
 
-COBALT = "#2233DD"
-LIME = "#CEF12B"
-INK = "#0E1330"
+MOSS = "#222C0F"      # the photo's dark edge
+FERN = "#36470F"      # the same green, a third of the way across
+LIME = "#CEF12B"      # the photo's bright edge, pushed to full strength
+INK = "#1A220A"       # text on lime
+SOFT = "#D5DEB5"      # secondary text on the green ground
 
 THEMES = {
     # GitHub's light page is white and its dark page is near-black, so the
     # cards need their own ground in each. Lime fails on a pale ground, so
-    # the light theme marks the running card in cobalt instead.
-    "light": {"bg": "#EEF1FB", "title": INK, "body": "#4A5377", "mark": COBALT},
-    "dark": {"bg": "#161D4D", "title": "#F3F5FF", "body": "#B4BBE3", "mark": LIME},
+    # the light theme marks the running card in a deeper green instead.
+    "light": {"bg": "#F0F4E1", "title": INK, "body": "#55603A", "mark": "#5C7A0C"},
+    "dark": {"bg": "#1E2710", "title": "#F5F8E8", "body": "#B7C296", "mark": LIME},
 }
 
 # GitHub's own language colours, because that is how a reader already knows
@@ -95,10 +100,17 @@ AGENTS = [
 ]
 
 # The cycle every card shares. Each agent holds the highlight for SLOT
-# seconds, so one lap is SLOT * len(AGENTS).
-START = 2.0
+# seconds, so one lap is SLOT * len(AGENTS). The lap starts once the page has
+# finished arriving.
+START = 3.0
 SLOT = 2.0
 LAP = SLOT * len(AGENTS)
+
+# One agent's turn, as a share of the lap. Every "while it is my turn"
+# animation is written against these, so they stay in step with each other.
+TURN = 100 / len(AGENTS)
+ON = f"0%,{TURN:.3f}%,100%"
+HELD = f"1.5%,{TURN - 1.6:.3f}%"
 
 
 # ------------------------------------------------------------------ type
@@ -144,11 +156,42 @@ def text(x: float, y: float, s: str, font: str, size: float, fill: str,
             f'font-size="{size:g}" fill="{fill}"{extra}>{escape(s)}</text>')
 
 
+def count_up(x: float, y: float, n: int, font: str, size: float, fill: str,
+             start: float, dur: float = 1.0) -> str:
+    """A number that counts up from zero to `n`.
+
+    CSS cannot change the text of an element, so the count is a stack of
+    numbers in the same spot, each visible for a moment. The real value is the
+    one left standing, and it is also the only one shown when motion is off.
+    """
+    final = text(x, y, str(n), font, size, fill)
+    if STATIC or n < 2:
+        return final
+    steps = min(n, 14)
+    # Ease out: quick at first, slowing as it nears the real number.
+    values = sorted({round(n * (1 - (1 - i / steps) ** 2)) for i in range(steps)} - {n})
+    each = dur / len(values)
+    frames = "".join(
+        text(x, y, str(v), font, size, fill,
+             f' opacity="0" style="animation:show {each:.3f}s steps(1) '
+             f'{start + i * each:.3f}s 1"')
+        for i, v in enumerate(values))
+    final = text(x, y, str(n), font, size, fill,
+                 f' style="animation:wait {start + dur:.3f}s linear 1"')
+    return frames + final
+
+
+# Shared by every card: the pieces of the count-up.
+COUNT_CSS = ("@keyframes show{from,to{opacity:1}}"
+             "@keyframes wait{from,to{opacity:0}}")
+
+
 def style(fonts: list[str], css: str) -> str:
     faces = "".join(font_face(f, FONTS[f]) for f in fonts)
-    motion = "" if STATIC else css
+    motion = "" if STATIC else COUNT_CSS + css
     return (f"<style>{faces}text{{font-kerning:normal}}{motion}"
-            "@media (prefers-reduced-motion:reduce){*{animation:none!important}}"
+            "@media (prefers-reduced-motion:reduce){"
+            "*{animation:none!important}.shine{fill:#fff!important}}"
             "</style>")
 
 
@@ -159,8 +202,6 @@ def hero() -> str:
     avatar = base64.b64encode((ROOT / "assets" / "avatar.jpg").read_bytes()).decode()
 
     stars, repos = DATA["total_stars"], DATA["public_repos"]
-    stat = (f"{stars} star{'s' if stars != 1 else ''} across "
-            f"{repos} public repositories")
 
     first, last = "Tanzeel", "Ur Rehman"
     size = fit(last, "display", 520, 74)
@@ -168,22 +209,39 @@ def hero() -> str:
                      "business: answering customers, keeping profiles fresh, "
                      "finding leads.", "regular", 24, 530)
 
+    ring = 2 * 3.14159 * 60
     css = f"""
 @keyframes pop{{from{{transform:scale(.6);opacity:0}}}}
+@keyframes draw{{from{{stroke-dashoffset:{ring:.0f}}}}}
+@keyframes pulse{{0%{{transform:scale(1);opacity:.75}}70%,100%{{transform:scale(1.5);opacity:0}}}}
+@keyframes drift{{from{{transform:translate(0,0)}}to{{transform:translate(-190px,90px)}}}}
 @keyframes rise{{from{{transform:translateY({size * 1.1:.0f}px)}}}}
 @keyframes fade{{from{{opacity:0}}}}
 @keyframes slide{{from{{opacity:0;transform:translateX(14px)}}}}
-@keyframes on{{0%,16.66%,100%{{opacity:0}}1.5%,15%{{opacity:1}}}}
-@keyframes name{{0%,16.66%,100%{{fill:#fff}}1.5%,15%{{fill:{INK}}}}}
-@keyframes does{{0%,16.66%,100%{{fill:#C9CEF6}}1.5%,15%{{fill:{INK}}}}}
+@keyframes on{{{ON}{{opacity:0}}{HELD}{{opacity:1}}}}
+@keyframes name{{{ON}{{fill:#fff}}{HELD}{{fill:{INK}}}}}
+@keyframes does{{{ON}{{fill:{SOFT}}}{HELD}{{fill:{INK}}}}}
+@keyframes work{{0%{{transform:scaleX(0);opacity:.5}}{TURN - 1.6:.3f}%{{transform:scaleX(1);opacity:.5}}{TURN:.3f}%,100%{{transform:scaleX(1);opacity:0}}}}
 .pop{{transform-box:fill-box;transform-origin:center;animation:pop .6s cubic-bezier(.2,1.4,.4,1) both}}
+.draw{{animation:draw 1.1s cubic-bezier(.6,0,.2,1) .15s both}}
+.pulse{{transform-box:fill-box;transform-origin:center;animation:pulse 3.2s ease-out 1.5s infinite}}
+.glow{{animation:drift 16s ease-in-out infinite alternate}}
 .rise{{animation:rise .8s cubic-bezier(.2,.8,.2,1) both}}
 .fade{{animation:fade .7s ease both}}
 .row{{animation:slide .5s ease both}}
 .hl{{animation:on {LAP:g}s linear infinite}}
 .nm{{animation:name {LAP:g}s linear infinite}}
 .ds{{animation:does {LAP:g}s linear infinite}}
+.wk{{transform-box:fill-box;transform-origin:left;animation:work {LAP:g}s linear infinite}}
 """
+
+    # A band of lime that crosses the name every few seconds. In SVG there is
+    # no background-clip for text, so the name is filled with a gradient and
+    # the gradient itself is what moves.
+    sweep = "" if STATIC else (
+        '<animateTransform attributeName="gradientTransform" type="translate" '
+        'values="-0.75 0;0.75 0;0.75 0" keyTimes="0;0.2;1" dur="6.5s" '
+        'begin="2.2s" repeatCount="indefinite"/>')
 
     out = [
         f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
@@ -191,54 +249,85 @@ def hero() -> str:
         f'aria-label="Tanzeel Ur Rehman builds AI agents for small businesses">',
         style(["display", "semi", "regular"], css),
         "<defs>"
+        f'<linearGradient id="ground" x1="0" x2="1" y1="0" y2="0.35">'
+        f'<stop offset="0" stop-color="{MOSS}"/><stop offset="1" stop-color="{FERN}"/></linearGradient>'
+        f'<radialGradient id="glow"><stop offset="0" stop-color="{LIME}" stop-opacity=".30"/>'
+        f'<stop offset="1" stop-color="{LIME}" stop-opacity="0"/></radialGradient>'
+        '<linearGradient id="shine" x1="0" x2="1" gradientTransform="translate(-0.75 0)">'
+        '<stop offset=".38" stop-color="#fff"/>'
+        f'<stop offset=".5" stop-color="{LIME}"/>'
+        f'<stop offset=".62" stop-color="#fff"/>{sweep}</linearGradient>'
+        f'<clipPath id="card"><rect width="{W}" height="{H}" rx="28"/></clipPath>'
         '<clipPath id="face"><circle cx="114" cy="112" r="52"/></clipPath>'
         f'<clipPath id="l1"><rect x="40" y="{262 - size:.0f}" width="620" height="{size + 10:.0f}"/></clipPath>'
         f'<clipPath id="l2"><rect x="40" y="{262 + size * 1.06 - size:.0f}" width="620" height="{size + 10:.0f}"/></clipPath>'
         "</defs>",
-        f'<rect width="{W}" height="{H}" rx="28" fill="{COBALT}"/>',
+        f'<rect width="{W}" height="{H}" rx="28" fill="url(#ground)"/>',
+        # The lime light from the photo's backdrop, drifting slowly across
+        # the corner the roster sits in.
+        '<g clip-path="url(#card)">'
+        '<circle class="glow" cx="1180" cy="20" r="430" fill="url(#glow)"/></g>',
 
-        # The photo. Its own background is lime, which is where the accent
-        # colour for the whole profile comes from.
+        # The photo, with a ring that is drawn around it once and then sends
+        # out a slow pulse.
+        f'<circle class="pulse" cx="114" cy="112" r="60" fill="none" stroke="{LIME}" '
+        f'stroke-width="2" opacity="0"/>',
         '<g class="pop">'
-        f'<circle cx="114" cy="112" r="60" fill="none" stroke="{LIME}" stroke-width="3"/>'
         f'<image x="58" y="56" width="112" height="112" clip-path="url(#face)" '
         f'xlink:href="data:image/jpeg;base64,{avatar}" href="data:image/jpeg;base64,{avatar}"/>'
         "</g>",
-        '<g class="fade" style="animation-delay:.25s">',
-        text(198, 106, "@tanzeeldevAi", "semi", 23, "#fff"),
-        text(198, 136, stat, "regular", 18.5, "#C9CEF6"),
-        "</g>",
+        f'<circle class="draw" cx="114" cy="112" r="60" fill="none" stroke="{LIME}" '
+        f'stroke-width="3" stroke-linecap="round" stroke-dasharray="{ring:.0f}" '
+        f'transform="rotate(-90 114 112)"/>',
+    ]
 
+    # "17 stars across 11 public repositories", with both numbers counting up.
+    x, y, fs = 198, 136, 18.5
+    out.append('<g class="fade" style="animation-delay:.25s">')
+    out.append(text(198, 106, "@tanzeeldevAi", "semi", 23, "#fff"))
+    for n, words in ((stars, f" star{'s' if stars != 1 else ''} across "),
+                     (repos, " public repositories")):
+        out.append(count_up(x, y, n, "semi", fs, "#fff", start=0.7))
+        x += width(str(n), "semi", fs)
+        out.append(text(x, y, words, "regular", fs, SOFT,
+                        ' xml:space="preserve"'))
+        x += width(words, "regular", fs)
+    out.append("</g>")
+
+    out += [
         f'<g clip-path="url(#l1)"><g class="rise" style="animation-delay:.2s">'
-        + text(57, 262, first, "display", size, "#fff") + "</g></g>",
+        + text(57, 262, first, "display", size, "url(#shine)", ' class="shine"')
+        + "</g></g>",
         f'<g clip-path="url(#l2)"><g class="rise" style="animation-delay:.34s">'
-        + text(57, 262 + size * 1.06, last, "display", size, "#fff") + "</g></g>",
+        + text(57, 262 + size * 1.06, last, "display", size, "url(#shine)",
+               ' class="shine"') + "</g></g>",
     ]
 
     y = 262 + size * 1.06 + 58
     out.append('<g class="fade" style="animation-delay:.75s">')
     for i, line in enumerate(statement):
-        out.append(text(60, y + i * 34, line, "regular", 24, "#E4E7FF"))
+        out.append(text(60, y + i * 34, line, "regular", 24, "#EDF2DA"))
     out.append("</g>")
 
     # The roster. One row is lit at a time, and the highlight walks down the
     # list for as long as the page is open: the agents take turns, which is
-    # what they do.
+    # what they do. A line fills along the lit row while its turn lasts.
     out.append('<g class="fade" style="animation-delay:.9s">'
-               + text(686, 78, "What the agents do", "semi", 20, "#C9CEF6") + "</g>")
+               + text(686, 78, "What the agents do", "semi", 20, SOFT) + "</g>")
     for i, a in enumerate(AGENTS):
         top = 100 + i * 64
-        delay = START + i * SLOT
         lit = STATIC and i == 0
-        run = f' style="animation-delay:{delay:g}s"'
+        run = f' style="animation-delay:{START + i * SLOT:g}s"'
         out.append(
             f'<g class="row" style="animation-delay:{1.0 + i * .09:g}s">'
             f'<rect class="hl"{run} x="664" y="{top}" width="476" height="58" rx="13" '
             f'fill="{LIME}" opacity="{1 if lit else 0}"/>'
+            f'<rect class="wk"{run} x="676" y="{top + 53}" width="452" height="2.5" '
+            f'rx="1.25" fill="{INK}" opacity="0"/>'
             + text(686, top + 26, a["name"], "semi", 22, INK if lit else "#fff",
                    f' class="nm"{run}')
-            + text(686, top + 47, a["does"], "regular", 17.5,
-                   INK if lit else "#C9CEF6", f' class="ds"{run}')
+            + text(686, top + 46, a["does"], "regular", 17.5,
+                   INK if lit else SOFT, f' class="ds"{run}')
             + "</g>")
 
     out.append("</svg>")
@@ -267,20 +356,49 @@ def card(index: int, agent: dict, theme: str) -> str:
     stars = repo.get("stars", 0)
     lang = repo.get("language") or ""
 
-    # Lit for the same two seconds the hero names this agent.
-    css = (f"@keyframes on{{0%,16.66%,100%{{opacity:0}}1.5%,15%{{opacity:1}}}}"
-           f".hl{{animation:on {LAP:g}s linear infinite;"
-           f"animation-delay:{START + index * SLOT:g}s}}")
+    # Cards arrive after the hero has finished, a row at a time.
+    arrive = 1.3 + index * 0.13
+    turn = START + index * SLOT
+    lit = STATIC and index == 0
+
+    # Everything under "my turn" runs for the same two seconds the hero
+    # names this agent: the border lights, a band of light crosses the card,
+    # a line fills along the bottom, and the language dot beats.
+    css = f"""
+@keyframes in{{from{{opacity:0;transform:translateY(30px) scale(.96)}}60%{{transform:translateY(-4px) scale(1.004)}}}}
+@keyframes spin{{from{{transform:rotate(-140deg) scale(0)}}60%{{transform:rotate(12deg) scale(1.25)}}}}
+@keyframes on{{{ON}{{opacity:0}}{HELD}{{opacity:1}}}}
+@keyframes sweep{{0%{{transform:translateX(0);opacity:1}}{TURN * .55:.3f}%{{transform:translateX({W + 260}px);opacity:1}}{TURN * .56:.3f}%,100%{{transform:translateX({W + 260}px);opacity:0}}}}
+@keyframes work{{0%{{transform:scaleX(0);opacity:1}}{TURN - 1.6:.3f}%{{transform:scaleX(1);opacity:1}}{TURN:.3f}%,100%{{transform:scaleX(1);opacity:0}}}}
+@keyframes beat{{{ON}{{transform:scale(1)}}{TURN * .25:.3f}%,{TURN * .75:.3f}%{{transform:scale(1.45)}}{TURN * .5:.3f}%{{transform:scale(1)}}}}
+.in{{transform-box:fill-box;transform-origin:center;animation:in .75s cubic-bezier(.2,.9,.3,1) {arrive:g}s both}}
+.spin{{transform-box:fill-box;transform-origin:center;animation:spin .6s cubic-bezier(.2,.9,.3,1) {arrive + .45:g}s both}}
+.hl{{animation:on {LAP:g}s linear {turn:g}s infinite}}
+.sw{{animation:sweep {LAP:g}s linear {turn:g}s infinite}}
+.wk{{transform-box:fill-box;transform-origin:left;animation:work {LAP:g}s linear {turn:g}s infinite}}
+.bt{{transform-box:fill-box;transform-origin:center;animation:beat {LAP:g}s ease-in-out {turn:g}s infinite}}
+"""
 
     out = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {FULL_W} {FULL_H}" '
         f'width="{FULL_W}" height="{FULL_H}" role="img" aria-label="{escape(agent["title"])}">',
         style(["semi", "regular"], css),
-        f'<g transform="translate({x0} 0)">',
+        "<defs>"
+        f'<clipPath id="c"><rect width="{W}" height="{H}" rx="16"/></clipPath>'
+        f'<linearGradient id="band" x1="0" x2="1">'
+        f'<stop offset="0" stop-color="{t["mark"]}" stop-opacity="0"/>'
+        f'<stop offset=".5" stop-color="{t["mark"]}" stop-opacity=".2"/>'
+        f'<stop offset="1" stop-color="{t["mark"]}" stop-opacity="0"/></linearGradient>'
+        "</defs>",
+        f'<g transform="translate({x0} 0)"><g class="in">',
         f'<rect width="{W}" height="{H}" rx="16" fill="{t["bg"]}"/>',
+        f'<g clip-path="url(#c)">'
+        f'<g transform="skewX(-18)"><rect class="sw" x="-190" y="-10" width="150" '
+        f'height="{H + 20}" fill="url(#band)" opacity="0"/></g>'
+        f'<rect class="wk" x="0" y="{H - 4}" width="{W}" height="4" fill="{t["mark"]}" opacity="0"/>'
+        "</g>",
         f'<rect class="hl" x="1.5" y="1.5" width="{W - 3}" height="{H - 3}" rx="14.5" '
-        f'fill="none" stroke="{t["mark"]}" stroke-width="3" '
-        f'opacity="{1 if STATIC and index == 0 else 0}"/>',
+        f'fill="none" stroke="{t["mark"]}" stroke-width="3" opacity="{1 if lit else 0}"/>',
         text(32, 62, agent["title"], "semi", 26, t["title"]),
     ]
     for i, line in enumerate(wrap(agent["blurb"], "regular", 19, W - 64)):
@@ -288,15 +406,17 @@ def card(index: int, agent: dict, theme: str) -> str:
 
     x, y = 32, H - 34
     if lang:
-        out.append(f'<circle cx="{x + 7}" cy="{y - 6}" r="7" fill="{LANG.get(lang, t["body"])}"/>')
+        out.append(f'<circle class="bt" cx="{x + 7}" cy="{y - 6}" r="7" '
+                   f'fill="{LANG.get(lang, t["body"])}"/>')
         out.append(text(x + 22, y, lang, "regular", 17.5, t["body"]))
         x += 22 + width(lang, "regular", 17.5) + 26
     if stars:
-        out.append(f'<path transform="translate({x:g} {y - 15}) scale(1.06)" '
-                   f'fill="{t["body"]}" d="{STAR}"/>')
-        out.append(text(x + 23, y, str(stars), "semi", 17.5, t["body"]))
+        out.append(f'<g transform="translate({x:g} {y - 15}) scale(1.06)">'
+                   f'<path class="spin" fill="{t["body"]}" d="{STAR}"/></g>')
+        out.append(count_up(x + 23, y, stars, "semi", 17.5, t["body"],
+                            start=arrive + .55, dur=.8))
 
-    out.append("</g></svg>")
+    out.append("</g></g></svg>")
     return "".join(out)
 
 
