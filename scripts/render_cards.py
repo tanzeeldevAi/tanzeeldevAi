@@ -420,9 +420,115 @@ def card(index: int, agent: dict, theme: str) -> str:
     return "".join(out)
 
 
+# ------------------------------------------------------- contribution graph
+
+MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
+# Five steps of the same green per theme, empty to busiest, so the graph reads
+# as part of the profile rather than GitHub's own widget pasted in.
+LEVELS = {
+    "light": ["#DCE4C2", "#B9D36A", "#93B92E", "#6A8F12", "#435C08"],
+    "dark": ["#2B361A", "#4E6A14", "#7EA51A", "#A9D021", LIME],
+}
+
+
+def graph(theme: str) -> str:
+    from datetime import date
+
+    path = ROOT / "data" / "contributions.json"
+    days = json.loads(path.read_text()) if path.exists() else []
+    t = THEMES[theme]
+    W, H = 1200, 336
+    left, top = 40, 146
+
+    total = sum(d["count"] for d in days)
+    active = sum(1 for d in days if d["count"])
+    best = max(days, key=lambda d: d["count"]) if days else None
+
+    # Columns are weeks starting on Sunday, which is how GitHub lays it out.
+    first = date.fromisoformat(days[0]["date"]) if days else date.today()
+    offset = (first.weekday() + 1) % 7
+
+    # A year is 53 or 54 columns depending on where it starts, so the square
+    # size comes from the width available rather than a fixed number, which
+    # pushed the last week off the card.
+    ncols = (len(days) + offset + 6) // 7 or 53
+    pitch = (W - 2 * left) / ncols
+    gap = pitch * .19
+    cell = pitch - gap
+
+    css = f"""
+@keyframes pop{{from{{transform:scale(0);opacity:0}}}}
+@keyframes now{{0%,100%{{transform:scale(1)}}50%{{transform:scale(1.35)}}}}
+@keyframes fade{{from{{opacity:0}}}}
+.col{{animation:fade .01s both}}
+.col rect{{transform-box:fill-box;transform-origin:center;animation:pop .35s cubic-bezier(.2,1.5,.4,1) both;animation-delay:inherit}}
+.now{{transform-box:fill-box;transform-origin:center;animation:now 1.8s ease-in-out 3s infinite}}
+.fade{{animation:fade .7s ease both}}
+"""
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
+        f'width="{W}" height="{H}" role="img" '
+        f'aria-label="{total} contributions in the last year">',
+        style(["semi", "regular"], css),
+        f'<rect width="{W}" height="{H}" rx="20" fill="{t["bg"]}"/>',
+        '<g class="fade">',
+        count_up(left, 62, total, "semi", 30, t["title"], start=.3, dur=1.1),
+        text(left + width(f"{total} ", "semi", 30), 62,
+             "contributions in the last year", "semi", 30, t["title"]),
+    ]
+    facts = [f"{active} active day{'s' if active != 1 else ''}"]
+    if best and best["count"]:
+        d = date.fromisoformat(best["date"])
+        facts.append(f"busiest day {d.day} {MONTHS[d.month - 1]} "
+                     f"with {best['count']}")
+    out.append(text(left, 92, ", ".join(facts), "regular", 19, t["body"]))
+    out.append("</g>")
+
+    # Month names over the week they start in.
+    seen = set()
+    for i, d in enumerate(days):
+        dt = date.fromisoformat(d["date"])
+        col = (i + offset) // 7
+        if dt.day <= 7 and (dt.year, dt.month) not in seen and col < ncols - 2:
+            seen.add((dt.year, dt.month))
+            out.append(text(left + col * pitch, top - 12,
+                            MONTHS[dt.month - 1], "regular", 15, t["body"]))
+
+    # One group per week, so the sweep is one delay per column rather than
+    # one per square.
+    cols: dict[int, list[str]] = {}
+    for i, d in enumerate(days):
+        col, row = divmod(i + offset, 7)
+        last = i == len(days) - 1
+        fill = LEVELS[theme][d["level"]]
+        cls = ' class="now"' if last and not STATIC else ""
+        cols.setdefault(col, []).append(
+            f'<rect{cls} x="{left + col * pitch:.1f}" '
+            f'y="{top + row * pitch:.1f}" width="{cell:.1f}" height="{cell:.1f}" '
+            f'rx="3.5" fill="{fill}"/>')
+    for col, rects in cols.items():
+        out.append(f'<g class="col" style="animation-delay:{.6 + col * .022:.3f}s">'
+                   + "".join(rects) + "</g>")
+
+    # The key, under the right edge.
+    kx = W - left - 5 * pitch - 40
+    ky = top + 7 * pitch + 12
+    out.append(text(kx - 42, ky + 14, "Less", "regular", 15, t["body"]))
+    for i, c in enumerate(LEVELS[theme]):
+        out.append(f'<rect x="{kx + i * pitch:.1f}" y="{ky:.1f}" width="{cell:.1f}" '
+                   f'height="{cell:.1f}" rx="3.5" fill="{c}"/>')
+    out.append(text(kx + 5 * pitch + 6, ky + 14, "More", "regular", 15, t["body"]))
+
+    out.append("</svg>")
+    return "".join(out)
+
+
 def main() -> None:
     CARDS.mkdir(exist_ok=True)
     (CARDS / "hero.svg").write_text(hero())
+    for theme in THEMES:
+        (CARDS / f"graph-{theme}.svg").write_text(graph(theme))
     for i, agent in enumerate(AGENTS):
         for theme in THEMES:
             (CARDS / f"{agent['key']}-{theme}.svg").write_text(card(i, agent, theme))

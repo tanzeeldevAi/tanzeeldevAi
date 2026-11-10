@@ -6,6 +6,8 @@
 <a href="https://github.com/tanzeeldevAi/upwork-ai-proposal-bot"><picture><source media="(prefers-color-scheme: dark)" srcset="./cards/upwork-dark.svg"><img src="./cards/upwork-light.svg" width="50%" alt="Upwork proposal bot. Catches new jobs within a minute, scores them, and sends a proposal draft to your phone."></picture></a><a href="https://github.com/tanzeeldevAi/zara-ai-laptop-agent"><picture><source media="(prefers-color-scheme: dark)" srcset="./cards/zara-dark.svg"><img src="./cards/zara-light.svg" width="50%" alt="Zara, a laptop agent. Runs a Windows laptop from Discord on your phone, by text or by voice note."></picture></a>
 </p>
 
+<a href="https://github.com/tanzeeldevAi?tab=overview"><picture><source media="(prefers-color-scheme: dark)" srcset="./cards/graph-dark.svg"><img src="./cards/graph-light.svg" width="100%" alt="Contribution graph for the last year"></picture></a>
+
 There is more in the [repositories tab](https://github.com/tanzeeldevAi?tab=repositories), including a tool that turns any video into a transcript an AI assistant can read, and a few website demos.
 
 <sub>These cards are SVG, drawn by <a href="./scripts/render_cards.py">one Python script</a> and redrawn every morning from live GitHub data.</sub>
