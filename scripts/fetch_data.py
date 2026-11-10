@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 USER = "tanzeeldevAi"
-OUT = Path(__file__).resolve().parent.parent / "data" / "github.json"
+DATA = Path(__file__).resolve().parent.parent / "data"
+OUT = DATA / "github.json"
+CALENDAR = DATA / "contributions.json"
 
 
 def get(url: str):
@@ -30,6 +33,35 @@ def get(url: str):
         req.add_header("Authorization", f"Bearer {token}")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.load(resp)
+
+
+def contributions() -> list[dict]:
+    """The last year of the contribution calendar, one entry per day.
+
+    There is no API for this without a token with more scope than the
+    workflow's own, so it is read from the same public page the profile
+    renders. The page gives each day a level (0-4) on one element and its
+    count in a tooltip on another, tied together by an id.
+    """
+    req = urllib.request.Request(
+        f"https://github.com/users/{USER}/contributions",
+        headers={"User-Agent": f"{USER}-profile-cards"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        html = resp.read().decode("utf-8", "replace")
+
+    days = {}
+    for m in re.finditer(r'<td[^>]*data-date="(\d{4}-\d\d-\d\d)"[^>]*'
+                         r'id="(contribution-day-component-\d+-\d+)"[^>]*'
+                         r'data-level="(\d)"', html):
+        days[m.group(2)] = {"date": m.group(1), "level": int(m.group(3)),
+                            "count": 0}
+    for m in re.finditer(r'<tool-tip[^>]*for="(contribution-day-component-'
+                         r'\d+-\d+)"[^>]*>\s*(\d+) contribution', html):
+        if m.group(1) in days:
+            days[m.group(1)]["count"] = int(m.group(2))
+    if len(days) < 300:
+        raise ValueError(f"calendar page changed shape ({len(days)} days)")
+    return sorted(days.values(), key=lambda d: d["date"])
 
 
 def main() -> int:
@@ -56,6 +88,16 @@ def main() -> int:
     }
     OUT.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     print(f"{data['public_repos']} repos, {data['total_stars']} stars")
+
+    # Separate from the stars, so a change to the calendar page cannot cost
+    # the cards their star counts.
+    try:
+        days = contributions()
+    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+        print(f"could not read the contribution calendar ({exc}); keeping it")
+        return 0
+    CALENDAR.write_text(json.dumps(days) + "\n")
+    print(f"{len(days)} days, {sum(d['count'] for d in days)} contributions")
     return 0
 
 
