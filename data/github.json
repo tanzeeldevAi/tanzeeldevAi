@@ -3,7 +3,7 @@
   "repos": {
     "ai-meeting-assistant-copilot": {
       "language": "JavaScript",
-      "stars": 0
+      "stars": 10
     },
     "ai-video-transcript-keyframes": {
       "language": "Python",
@@ -54,5 +54,5 @@
       "stars": 5
     }
   },
-  "total_stars": 18
+  "total_stars": 28
 }
