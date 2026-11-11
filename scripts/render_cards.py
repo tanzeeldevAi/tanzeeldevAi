@@ -55,6 +55,13 @@ LANG = {"Python": "#3572A5", "JavaScript": "#F1E05A", "HTML": "#E34C26"}
 # cards sit in the README, so the card that lights up is the one being named.
 
 AGENTS = [
+    {"repo": "ai-meeting-assistant-copilot",
+     "key": "meeting",
+     "name": "Meeting Copilot",
+     "does": "writes what to say back on a live call",
+     "title": "AI meeting assistant",
+     "blurb": "Listens to Zoom, Meet or Teams and shows what to say back, hidden "
+              "from screen share."},
     {"repo": "google-business-profile-ai-automation",
      "key": "gbp",
      "name": "Google Business Profile",
@@ -97,6 +104,13 @@ AGENTS = [
      "title": "Zara, a laptop agent",
      "blurb": "Runs a Windows laptop from Discord on your phone, by text or "
               "by voice note."},
+    {"repo": "ai-video-transcript-keyframes",
+     "key": "video",
+     "name": "Video to text",
+     "does": "makes any video readable for an AI",
+     "title": "Video transcript tool",
+     "blurb": "Turns any video into a timestamped transcript and keyframes an "
+              "AI assistant can read."},
 ]
 
 # The cycle every card shares. Each agent holds the highlight for SLOT
@@ -198,7 +212,7 @@ def style(fonts: list[str], css: str) -> str:
 # ------------------------------------------------------------------ the hero
 
 def hero() -> str:
-    W, H = 1200, 512
+    W, H = 1200, 552
     avatar = base64.b64encode((ROOT / "assets" / "avatar.jpg").read_bytes()).decode()
 
     stars, repos = DATA["total_stars"], DATA["public_repos"]
@@ -313,20 +327,20 @@ def hero() -> str:
     # list for as long as the page is open: the agents take turns, which is
     # what they do. A line fills along the lit row while its turn lasts.
     out.append('<g class="fade" style="animation-delay:.9s">'
-               + text(686, 78, "What the agents do", "semi", 20, SOFT) + "</g>")
+               + text(686, 72, "What they do", "semi", 20, SOFT) + "</g>")
     for i, a in enumerate(AGENTS):
-        top = 100 + i * 64
+        top = 88 + i * 55
         lit = STATIC and i == 0
         run = f' style="animation-delay:{START + i * SLOT:g}s"'
         out.append(
             f'<g class="row" style="animation-delay:{1.0 + i * .09:g}s">'
-            f'<rect class="hl"{run} x="664" y="{top}" width="476" height="58" rx="13" '
+            f'<rect class="hl"{run} x="664" y="{top}" width="476" height="50" rx="12" '
             f'fill="{LIME}" opacity="{1 if lit else 0}"/>'
-            f'<rect class="wk"{run} x="676" y="{top + 53}" width="452" height="2.5" '
+            f'<rect class="wk"{run} x="676" y="{top + 46}" width="452" height="2.5" '
             f'rx="1.25" fill="{INK}" opacity="0"/>'
-            + text(686, top + 26, a["name"], "semi", 22, INK if lit else "#fff",
+            + text(686, top + 22, a["name"], "semi", 20, INK if lit else "#fff",
                    f' class="nm"{run}')
-            + text(686, top + 46, a["does"], "regular", 17.5,
+            + text(686, top + 41, a["does"], "regular", 16,
                    INK if lit else SOFT, f' class="ds"{run}')
             + "</g>")
 
