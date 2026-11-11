@@ -1,6 +1,10 @@
 {
-  "public_repos": 12,
+  "public_repos": 13,
   "repos": {
+    "ai-meeting-assistant-copilot": {
+      "language": "JavaScript",
+      "stars": 0
+    },
     "ai-video-transcript-keyframes": {
       "language": "Python",
       "stars": 0
@@ -15,7 +19,7 @@
     },
     "google-business-profile-ai-automation": {
       "language": "Python",
-      "stars": 10
+      "stars": 11
     },
     "linkedin-automation-ai-agent": {
       "language": "Python",
@@ -50,5 +54,5 @@
       "stars": 5
     }
   },
-  "total_stars": 17
+  "total_stars": 18
 }
